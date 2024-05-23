@@ -189,6 +189,11 @@ sudo systemctl status hibernate.target hybrid-sleep.target \
 df -hTP >"${DRIVES_AND_STORAGE_DIR}/df.txt"
 cat /etc/fstab >"${DRIVES_AND_STORAGE_DIR}/fstab.txt"
 cat /etc/default/grub >"${FINAL_DIR}/grub.txt"
+# Should get the kernel command line from /proc/cmdline
+# Also /etc/default/grub is not always the source of truth
+# Should get /etc/default/grub.d/ if it has files
+# These config files can overwrite the kernel command line from /etc/default/grub
+# Create repot for grub/boot info
 lsmod >"${FINAL_DIR}/lsmod.txt"
 dpkg -l >"${REPOS_AND_PACKAGES_DIR}/dpkg.txt"
 export PIP_DISABLE_PIP_VERSION_CHECK=1
