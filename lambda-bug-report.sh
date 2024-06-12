@@ -49,6 +49,8 @@ GPU_MEMORY_ERRORS_DIR="$FINAL_DIR/gpu-memory-errors"
 mkdir -p "$GPU_MEMORY_ERRORS_DIR"
 BMC_INFO_DIR="$FINAL_DIR/bmc-info"
 mkdir -p "$BMC_INFO_DIR"
+GRUB_DIR="$FINAL_DIR/grub"
+mkdir -p "$GRUB_DIR"
 
 #Global variables
 APT_UPDATE_HAS_RUN=False
@@ -96,12 +98,11 @@ done
 # Collect all apt history logs into one sorted file
 find /var/log/apt -type f -name "history.log*" | sort -Vr | while read log; do
     if [[ "$log" =~ \.gz$ ]]; then
-        zcat "$log" | sudo tee -a "$SYSTEM_LOGS_DIR/apt-history.log" > /dev/null
+        zcat "$log" | sudo tee -a "$SYSTEM_LOGS_DIR/apt-history.log" >/dev/null
     else
-        cat "$log" | sudo tee -a "$SYSTEM_LOGS_DIR/apt-history.log" > /dev/null
+        cat "$log" | sudo tee -a "$SYSTEM_LOGS_DIR/apt-history.log" >/dev/null
     fi
 done
-
 
 sudo dmesg -Tl err >"${SYSTEM_LOGS_DIR}/dmesg-errors.txt"
 sudo journalctl >"${SYSTEM_LOGS_DIR}/journalctl.txt"
@@ -171,6 +172,13 @@ if ! command -v lshw >/dev/null 2>&1; then
 fi
 sudo lshw >"${FINAL_DIR}/hw-list.txt"
 
+# Collecdt GRUB info
+cat /proc/cmdline > "${GRUB_DIR}/proc_cmdline.txt"
+cat /etc/default/grub > "${GRUB_DIR}/grub.txt"
+if [ -d /etc/default/grub.d/ ]; then
+    cp -r /etc/default/grub.d/ "${GRUB_DIR}/"
+fi
+
 # Check for memory remapping and memory errors on GPUs
 nvidia-smi --query-remapped-rows=gpu_bus_id,gpu_uuid,remapped_rows.correctable,remapped_rows.uncorrectable,remapped_rows.pending,remapped_rows.failure \
     --format=csv >"${GPU_MEMORY_ERRORS_DIR}/remapped-memory.txt"
@@ -188,12 +196,6 @@ sudo systemctl status hibernate.target hybrid-sleep.target \
 # Collect other system information
 df -hTP >"${DRIVES_AND_STORAGE_DIR}/df.txt"
 cat /etc/fstab >"${DRIVES_AND_STORAGE_DIR}/fstab.txt"
-cat /etc/default/grub >"${FINAL_DIR}/grub.txt"
-# Should get the kernel command line from /proc/cmdline
-# Also /etc/default/grub is not always the source of truth
-# Should get /etc/default/grub.d/ if it has files
-# These config files can overwrite the kernel command line from /etc/default/grub
-# Create repot for grub/boot info
 lsmod >"${FINAL_DIR}/lsmod.txt"
 dpkg -l >"${REPOS_AND_PACKAGES_DIR}/dpkg.txt"
 export PIP_DISABLE_PIP_VERSION_CHECK=1
