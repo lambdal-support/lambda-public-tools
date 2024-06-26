@@ -7,7 +7,7 @@
 
 # Copyright 2024 Lambda, Inc.
 # Website:		https://lambdalabs.com
-# Author(s):		Bryan Gwin
+# Author(s):		Bryan Gwin, Ryan England
 # Script License:	BSD 3-clause
 
 # Script info and disclaimer
@@ -73,6 +73,36 @@ collect_drive_checks() {
     DRIVES=$(lsblk | egrep "^sd|^nvm" | awk '{print $1}')
     for DRIVE in ${DRIVES}; do
         sudo smartctl -x /dev/"${DRIVE}" >"$DRIVES_AND_STORAGE_DIR/smartctl-${DRIVE}.txt" 2>&1
+    done
+}
+
+# Collect Jupyter data
+collect_jupyter_data() {
+    line_separator="____________________________________________"
+    log_file=$FINAL_DIR/jupyter-notebook.log
+
+    append_log_file() {
+	    tee --append $log_file
+    }
+
+    commands=(
+        # Make sure that port 7000 is listening & accessible
+        "ss --processes --tcp src :7000"
+        "ss --processes --tcp dst :7000"
+
+        # Cloudflare service should be running
+        "sudo systemctl status --full --no-pager cloudflared"
+    )
+
+
+    # Create log file & start with the seaprator
+    printf "$line_separator\n\n" | tee $log_file
+
+    # Iterate over commands
+    for c in "${commands[@]}"; do
+        printf "*** $c\n" | append_log_file
+        $c | append_log_file
+        printf "\n$line_separator\n\n" | append_log_file
     done
 }
 
@@ -192,6 +222,12 @@ nvidia-smi --query-gpu=index,pci.bus_id,uuid,ecc.errors.uncorrected.aggregate.dr
 # Check hibernation settings
 sudo systemctl status hibernate.target hybrid-sleep.target \
     suspend-then-hibernate.target sleep.target suspend.target >"${FINAL_DIR}/hibernation-settings.txt"
+
+# Gather Jupyter data if lambda-jupyter.service is present
+jupyter_service="/etc/systemd/system/lambda-jupyter.service"
+if [ -f "$jupyter_service" ]; then
+    collect_jupyter_data
+fi
 
 # Collect other system information
 df -hTP >"${DRIVES_AND_STORAGE_DIR}/df.txt"
