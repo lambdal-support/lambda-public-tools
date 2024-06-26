@@ -86,6 +86,9 @@ collect_jupyter_data() {
     }
 
     commands=(
+        # Output lambda-jupyter.service status to log file
+	    "sudo systemctl status --full --no-pager lambda-jupyter.service"
+
         # Make sure that port 7000 is listening & accessible
         "ss --processes --tcp src :7000"
         "ss --processes --tcp dst :7000"
