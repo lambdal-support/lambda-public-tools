@@ -76,39 +76,6 @@ collect_drive_checks() {
     done
 }
 
-# Collect Jupyter data
-collect_jupyter_data() {
-    line_separator="____________________________________________"
-    log_file=$FINAL_DIR/jupyter-notebook.log
-
-    append_log_file() {
-	    tee --append $log_file
-    }
-
-    commands=(
-        # Output lambda-jupyter.service status to log file
-	    "sudo systemctl status --full --no-pager lambda-jupyter.service"
-
-        # Make sure that port 7000 is listening & accessible
-        "ss --processes --tcp src :7000"
-        "ss --processes --tcp dst :7000"
-
-        # Cloudflare service should be running
-        "sudo systemctl status --full --no-pager cloudflared"
-    )
-
-
-    # Create log file & start with the seaprator
-    printf "$line_separator\n\n" | tee $log_file
-
-    # Iterate over commands
-    for c in "${commands[@]}"; do
-        printf "*** $c\n" | append_log_file
-        $c | append_log_file
-        printf "\n$line_separator\n\n" | append_log_file
-    done
-}
-
 # Generate NVIDIA bug report
 echo "Running nvidia-bug-report.sh..."
 sudo nvidia-bug-report.sh >/dev/null 2>&1
@@ -226,12 +193,6 @@ nvidia-smi --query-gpu=index,pci.bus_id,uuid,ecc.errors.uncorrected.aggregate.dr
 sudo systemctl status hibernate.target hybrid-sleep.target \
     suspend-then-hibernate.target sleep.target suspend.target >"${FINAL_DIR}/hibernation-settings.txt"
 
-# Gather Jupyter data if lambda-jupyter.service is present
-jupyter_service="/etc/systemd/system/lambda-jupyter.service"
-if [ -f "$jupyter_service" ]; then
-    collect_jupyter_data
-fi
-
 # Collect other system information
 df -hTP >"${DRIVES_AND_STORAGE_DIR}/df.txt"
 cat /etc/fstab >"${DRIVES_AND_STORAGE_DIR}/fstab.txt"
@@ -252,6 +213,7 @@ sudo ufw status >"${NETWORKING_DIR}/ufw-status.txt"
 sudo resolvectl status >"${NETWORKING_DIR}/resolvectl-status.txt"
 top -n 1 -b >"${FINAL_DIR}/top.txt"
 nvidia-smi >"${FINAL_DIR}/nvidia-smi.txt"
+ss --tcp --udp --list --numeric >"${NETWORKING_DIR}/ss.txt"
 
 collect_drive_checks
 
