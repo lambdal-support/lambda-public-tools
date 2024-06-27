@@ -7,7 +7,7 @@
 
 # Copyright 2024 Lambda, Inc.
 # Website:		https://lambdalabs.com
-# Author(s):		Bryan Gwin
+# Author(s):		Bryan Gwin, Ryan England
 # Script License:	BSD 3-clause
 
 # Script info and disclaimer
@@ -213,6 +213,7 @@ sudo ufw status >"${NETWORKING_DIR}/ufw-status.txt"
 sudo resolvectl status >"${NETWORKING_DIR}/resolvectl-status.txt"
 top -n 1 -b >"${FINAL_DIR}/top.txt"
 nvidia-smi >"${FINAL_DIR}/nvidia-smi.txt"
+ss --tcp --udp --listening --numeric >"${NETWORKING_DIR}/ss.txt"
 
 collect_drive_checks
 
