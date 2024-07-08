@@ -1,0 +1,30 @@
+---
+- name: Destroy K3s Kubernetes Cluster
+  hosts: all
+  become: true  # To escalate privilege using sudo, if needed
+
+  tasks:
+    - name: Remove K3s on the server node (k3s-node-01)
+      when: inventory_hostname == 'k3s-node-01'
+      block:
+        - name: Run uninstall script on k3s-node-01
+          shell: /usr/local/bin/k3s-uninstall.sh
+          ignore_errors: true  # Ignore errors in case uninstallation fails
+          register: uninstall_result
+
+    - name: Remove K3s on the server node (k3s-node-02)
+      when: inventory_hostname == 'k3s-node-02'
+      block:
+        - name: Run uninstall script on k3s-node-02
+          shell: /usr/local/bin/k3s-uninstall.sh
+          ignore_errors: true  # Ignore errors in case uninstallation fails
+          register: uninstall_result
+
+    - name: Remove K3s on the server node (k3s-node-03)
+      when: inventory_hostname == 'k3s-node-03'
+      block:
+        - name: Run uninstall script on k3s-node-03
+          shell: /usr/local/bin/k3s-uninstall.sh
+          ignore_errors: true  # Ignore errors in case uninstallation fails
+          register: uninstall_result
+

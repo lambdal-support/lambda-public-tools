@@ -1,0 +1,53 @@
+---
+- name: Deploy K3s Kubernetes Cluster
+  hosts: all
+  become: yes  # To escalate privilege using sudo, if needed
+
+  tasks:
+    - name: Install K3s on the server node (k3s-node-01)
+      when: inventory_hostname == 'k3s-node-01'
+      block:
+        - name: Install K3s Server on k3s-node-01
+          shell: curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="--write-kubeconfig-mode=644" K3S_TOKEN=k3stoken sh -s - server --cluster-init
+          register: install_k3s_result
+          ignore_errors: true  # Ignore errors to handle the failure condition
+
+        - name: Pause to allow firstserver node time to initialize
+          pause:
+            minutes: 1
+          when: install_k3s_result.rc == 0  # Only pause if installation was successful
+
+        - name: Run uninstall script if installation failed on k3s-node-01
+          shell: /usr/local/bin/k3s-uninstall.sh
+          when: install_k3s_result.rc != 0  # Run only if installation failed
+          register: uninstall_result
+          ignore_errors: true  # Ignore errors in case uninstallation fails
+
+    - name: Install K3s on the server node (k3s-node-02)
+      when: inventory_hostname == 'k3s-node-02'
+      block:
+        - name: Install K3s Server on k3s-node-02
+          shell: curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="--write-kubeconfig-mode=644" K3S_TOKEN=k3stoken sh -s - server --server https://k3s-node-01:6443
+          register: install_k3s_result
+          ignore_errors: true  # Ignore errors to handle the failure condition
+
+        - name: Run uninstall script if installation failed on k3s-node-02
+          shell: /usr/local/bin/k3s-uninstall.sh
+          when: install_k3s_result.rc != 0  # Run only if previous task failed
+          register: uninstall_result
+          ignore_errors: true  # Ignore errors in case uninstallation fails
+
+    - name: Install K3s on the server node (k3s-node-03)
+      when: inventory_hostname == 'k3s-node-03'
+      block:
+        - name: Install K3s Server on k3s-node-03
+          shell: curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="--write-kubeconfig-mode=644" K3S_TOKEN=k3stoken sh -s - server --server https://k3s-node-01:6443
+          register: install_k3s_result
+          ignore_errors: true  # Ignore errors to handle the failure condition
+
+        - name: Run uninstall script if installation failed on k3s-node-03
+          shell: /usr/local/bin/k3s-uninstall.sh
+          when: install_k3s_result.rc != 0  # Run only if previous task failed
+          register: uninstall_result
+          ignore_errors: true  # Ignore errors in case uninstallation fails
+
