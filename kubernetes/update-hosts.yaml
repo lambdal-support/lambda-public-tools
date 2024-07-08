@@ -1,0 +1,21 @@
+---
+- name: Update hosts file and set hostnames on all nodes
+  hosts: all  # Make sure this matches the group or hostname in your inventory
+
+  tasks:
+    - name: Set hostname
+      become: true  # Ensure privilege escalation using sudo
+      ansible.builtin.hostname:
+        name: "{{ inventory_hostname }}"
+
+    - name: Update hosts file
+      become: true  # Ensure privilege escalation using sudo
+      lineinfile:
+        path: /etc/hosts
+        regexp: '^{{ item.name }}'
+        line: '{{ item.ip }} {{ item.name }}'
+        state: present
+      loop:
+        - { ip: '', name: 'k3s-node-01' }
+        - { ip: '', name: 'k3s-node-02' }
+        - { ip: '', name: 'k3s-node-03' }
