@@ -173,8 +173,8 @@ fi
 sudo lshw >"${FINAL_DIR}/hw-list.txt"
 
 # Collecdt GRUB info
-cat /proc/cmdline > "${GRUB_DIR}/proc_cmdline.txt"
-cat /etc/default/grub > "${GRUB_DIR}/grub.txt"
+cat /proc/cmdline >"${GRUB_DIR}/proc_cmdline.txt"
+cat /etc/default/grub >"${GRUB_DIR}/grub.txt"
 if [ -d /etc/default/grub.d/ ]; then
     cp -r /etc/default/grub.d/ "${GRUB_DIR}/"
 fi
@@ -193,6 +193,19 @@ nvidia-smi --query-gpu=index,pci.bus_id,uuid,ecc.errors.uncorrected.aggregate.dr
 sudo systemctl status hibernate.target hybrid-sleep.target \
     suspend-then-hibernate.target sleep.target suspend.target >"${FINAL_DIR}/hibernation-settings.txt"
 
+# Collect sources.list.d repo info
+output_file="${REPOS_AND_PACKAGES_DIR}/listd-repos.txt"
+
+for file in /etc/apt/sources.list.d/*; do
+    if [ -f "$file" ]; then
+        echo "$(basename "$file")" >>"$output_file"
+
+        cat "$file" >>"$output_file"
+
+        echo "" >>"$output_file"
+    fi
+done
+
 # Collect other system information
 df -hTP >"${DRIVES_AND_STORAGE_DIR}/df.txt"
 cat /etc/fstab >"${DRIVES_AND_STORAGE_DIR}/fstab.txt"
@@ -201,7 +214,6 @@ dpkg -l >"${REPOS_AND_PACKAGES_DIR}/dpkg.txt"
 export PIP_DISABLE_PIP_VERSION_CHECK=1
 pip -v list >"${REPOS_AND_PACKAGES_DIR}/pip-list.txt" 2>/dev/null
 unset PIP_DISABLE_PIP_VERSION_CHECK
-ls /etc/apt/sources.list.d >"${REPOS_AND_PACKAGES_DIR}/listd-repos.txt"
 grep -v '^#' /etc/apt/sources.list >"${REPOS_AND_PACKAGES_DIR}/sources-list.txt"
 cat /proc/mounts >"${DRIVES_AND_STORAGE_DIR}/mounts.txt"
 sudo sysctl -a >"${FINAL_DIR}/sysctl-all.txt"
