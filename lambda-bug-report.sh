@@ -172,6 +172,12 @@ if ! command -v lshw >/dev/null 2>&1; then
 fi
 sudo lshw >"${FINAL_DIR}/hw-list.txt"
 
+# Collect SW Raid info
+if command -v mdadm >/dev/null 2>&1; then
+    sudo mdadm --detail --scan >"${DRIVES_AND_STORAGE_DIR}/mdadm-scan.txt"
+    cat /etc/mdadm/mdadm.conf >"${DRIVES_AND_STORAGE_DIR}/mdadm-conf.txt"
+fi
+
 # Collecdt GRUB info
 cat /proc/cmdline >"${GRUB_DIR}/proc_cmdline.txt"
 cat /etc/default/grub >"${GRUB_DIR}/grub.txt"
@@ -209,6 +215,7 @@ done
 # Collect other system information
 df -hTP >"${DRIVES_AND_STORAGE_DIR}/df.txt"
 cat /etc/fstab >"${DRIVES_AND_STORAGE_DIR}/fstab.txt"
+cat /proc/mdstat >"${DRIVES_AND_STORAGE_DIR}/mdstat.txt"
 lsmod >"${FINAL_DIR}/lsmod.txt"
 dpkg -l >"${REPOS_AND_PACKAGES_DIR}/dpkg.txt"
 export PIP_DISABLE_PIP_VERSION_CHECK=1
