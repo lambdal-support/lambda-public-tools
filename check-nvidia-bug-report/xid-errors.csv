@@ -1,0 +1,91 @@
+1,0101101,Invalid or corrupted push buffer stream
+2,0101101,Invalid or corrupted push buffer stream
+3,0101101,Invalid or corrupted push buffer stream
+4,0101101,Invalid or corrupted push buffer stream
+5,0000000 Unused
+6,0101101,Invalid or corrupted push buffer stream
+7,0100101,Invalid or corrupted push buffer address
+8,0110111,GPU stopped processing
+9,0100000,Driver error programming GPU
+10,0000000,Unused
+11,0101101,Invalid or corrupted push buffer stream
+12,0100000,Driver error handling GPU exception
+13,0111111,Graphics Engine Exception
+14,0000000,Unused
+15,0000000,Unused
+16,0100000,Display engine hung
+17,0000000,Unused
+18,0100000,Bus mastering disabled in PCI Config Space
+19,0100000,Display Engine error
+20,0101101,Invalid or corrupted Mpeg push buffer
+21,0101101,Invalid or corrupted Motion Estimation push buffer
+22,0101101,Invalid or corrupted Video Processor push buffer
+23,0000000,Unused
+24,0111111,GPU semaphore timeout
+25,0111101,Invalid or illegal push buffer stream
+26,0100000,Framebuffer timeout
+27,0100000,Video processor exception
+28,0100000,Video processor exception
+29,0100000,Video processor exception
+30,0110000,GPU semaphore access error
+31,0110000,GPU memory page fault
+32,0101111,Invalid or corrupted push buffer stream
+33,0100000,Internal micro-controller error
+34,0100000,Video processor exception
+35,0100000,Video processor exception
+36,0100000,Video processor exception
+37,0101100,Driver firmware error
+38,0000000,Driver firmware error
+39,0000000,Unused
+40,0000000,Unused
+41,0000000,Unused
+42,0100000,Video processor exception
+43,0110000,GPU stopped processing
+44,0100000,Graphics Engine fault during context switch
+45,0100000,Preemptive cleanup, due to previous errors
+46,0100000,GPU stopped processing
+47,0100000,Video processor exception
+48,1000000,Double Bit ECC Error
+49,0000000,Unused
+50,0000000,Unused
+51,0000000,Unused
+52,0000000,Unused
+53,0000000,Unused
+54,0000000,Auxiliary power is not connected to the GPU board
+55,0000000,Unused
+56,1100000,Display Engine error
+57,1100001,Error programming video memory interface
+58,1100000,Unstable video memory interface detected
+59,0100000,Internal micro-controller error
+60,0100000,Video processor exception
+61,0000000,Internal micro-controller breakpoint/warning
+62,1100010,Internal micro-controller halt
+63,1100001,ECC page retirement recording event
+64,1100000,ECC page retirement recording failure
+65,1100000,Video processor exception
+66,0110000,Illegal access by driver
+67,0110000,Illegal access by driver
+68,1100000,Video processor exception
+69,1100000,Graphics Engine class error
+70,1100000,CE3: Unknown Error
+71,1100000,CE4: Unknown Error
+72,1100000,CE5: Unknown Error
+73,1100000,NVENC2 Error
+74,1100100,NVLINK Error
+75,0000000,Reserved
+76,0000000,Reserved
+77,0000000,Reserved
+78,0100000,vGPU Start Error
+79,1101110,GPU has fallen off the bus
+80,1101101,Corrupted data sent to GPU
+81,1000000 Subsystem Error
+# Commercial GPU errors:
+63,1100001,Row Remapper successful - requires reboot - recorded a row-remapping entry to the InfoROM
+64,1100000,Row Remapper Error - failure in recording a row-remapping entry to the InfoROM 
+94,1100000,contained ECC error has occurred
+95,1100000,uncontained ECC error has occurred
+# Other undocumented errors 
+119,110001,Timeout waiting for RPC from GSP! - commonly Unknown Error - on SMC 420GP-TNR Fix: new BIOS 1.4
+122,110000,SPI read failure at address - commonly Unknown Error - on SMC 420GP-TNR Fix: new BIOS 1.4
+123,110000,SPI write failure at address - commonly Unknown Error - on SMC 420GP-TNR Fix: new BIOS 1.4
+
