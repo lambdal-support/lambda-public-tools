@@ -11,9 +11,13 @@
 # Has all the Xid errors except 94 or ones for A100
 # Add the path you place the CSV list of errors
 
+
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 # !!!!!!!!!!!!!! IMPORTANT!!!!!!!!!!!!!!!
-# Define the path to to the xid-errors.csv file. 
-NVIDIA_XID_ERRORS="$HOME/xid-errors.csv"
+# If you move the this script into a different directory than the xid-errors.csv file
+# you will need to define the path to to the xid-errors.csv file below.
+NVIDIA_XID_ERRORS="$SCRIPT_DIR/xid-errors.csv"
+
 
 if [ -z "$1" ]; then
   echo "Using nvidia-bug-report.log"
