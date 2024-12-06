@@ -232,7 +232,7 @@ sudo ufw status >"${NETWORKING_DIR}/ufw-status.txt"
 sudo resolvectl status >"${NETWORKING_DIR}/resolvectl-status.txt"
 top -n 1 -b >"${FINAL_DIR}/top.txt"
 nvidia-smi >"${FINAL_DIR}/nvidia-smi.txt"
-ss --tcp --udp --listening --numeric >"${NETWORKING_DIR}/ss.txt"
+sudo ss --tcp --udp --listening --numeric --process >"${NETWORKING_DIR}/ss.txt"
 echo "$(uptime -p)" since "$(uptime -s)" >"${FINAL_DIR}/uptime.txt"
 
 collect_drive_checks
