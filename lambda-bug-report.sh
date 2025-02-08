@@ -51,6 +51,10 @@ install_needed_tool() {
     # <executable> is the executable to check to determine if a package needs to be installed
     # <package> is the package to install if the previous check fails
     # the third field determines whether this tool is useful on a VM (0 for no, 1 for yes)
+    #
+    # Best practice is to send stderr to /dev/null when using tools installed this way, that way if
+    # the install is skipped the user will not get errors about tools that cannot be run. You can
+    # also check if the output file is empty and note the tool was run, but no output was produced.
 
     # Proactively assume a tool is not beneficial on a VM
     VM_TOOL=${3:-0}
@@ -148,7 +152,7 @@ sudo journalctl >"${SYSTEM_LOGS_DIR}/journalctl.txt"
 
 # Check for ibstat and install if not present
 install_needed_tool ibstat infiniband-diags 1
-ibstat >"${FINAL_DIR}/ibstat.txt"
+ibstat >"${FINAL_DIR}/ibstat.txt" 2>/dev/null
 if [ ! -s "${FINAL_DIR}/ibstat.txt" ]; then
     echo "No InfiniBand data available. This machine may not have InfiniBand." >"${FINAL_DIR}/ibstat.txt"
 fi
@@ -167,14 +171,23 @@ fi
 # Check for sensors and install if not present
 install_needed_tool sensors lm-sensors
 sensors >"${FINAL_DIR}/sensors.txt" 2>/dev/null
+if [ ! -s "${FINAL_DIR}/sensors.txt" ]; then
+    echo "No sensor data available. This machine may not have sensors." >"${FINAL_DIR}/sensors.txt"
+fi
 
 # Check for iostat and install if not present
 install_needed_tool iostat sysstat 1
-sudo iostat -xt >"${DRIVES_AND_STORAGE_DIR}/iostat.txt"
+sudo iostat -xt >"${DRIVES_AND_STORAGE_DIR}/iostat.txt" 2>/dev/null
+if [ ! -s "${DRIVES_AND_STORAGE_DIR}/iostat.txt" ]; then
+    echo "No iostat data available. This machine may not have iostat." >"${DRIVES_AND_STORAGE_DIR}/iostat.txt"
+fi
 
 # Check for lshw and install if not present
 install_needed_tool lshw lshw 1
-sudo lshw >"${FINAL_DIR}/hw-list.txt"
+sudo lshw >"${FINAL_DIR}/hw-list.txt" 2>/dev/null
+if [ ! -s "${FINAL_DIR}/hw-list.txt" ]; then
+    echo "No lshw data available. This machine may not have lshw." >"${FINAL_DIR}/hw-list.txt"
+fi
 
 # Collect SW Raid info
 if command -v mdadm >/dev/null 2>&1; then
