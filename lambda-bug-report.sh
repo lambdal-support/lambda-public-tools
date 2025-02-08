@@ -28,6 +28,38 @@ script_info_and_disclaimer() {
 
 script_info_and_disclaimer
 
+# We will later check whether this machine will benefit from certain tools, rather than just installing them.
+# Proactively assume the machine is not a VM
+IS_VIRTUAL_MACHINE=1
+
+check_if_virtualized() {
+    SYSTEM_MANUFACTURER="$(sudo dmidecode | grep -A1 "System Information" | grep "Manufacturer" | sed 's/^\tManufacturer: //')"
+    if [[ "${SYSTEM_MANUFACTURER}" == "QEMU" ]]; then
+        IS_VIRTUAL_MACHINE=0
+    else
+        IS_VIRTUAL_MACHINE=1
+    fi
+}
+
+check_if_virtualized
+
+install_needed_tool() {
+    if [ $IS_VIRTUAL_MACHINE -eq 0 ]; then
+        # The tool is not beneficial for a VM, no need to proceed further with this fuction.
+        return
+    fi
+    if command -v ${1} >/dev/null 2>&1; then
+        # The tool is already available, no need to proceed further with this fuction.
+        return
+    fi
+    echo "${1} could not be found, attempting to install."
+    if [ "$APT_UPDATE_HAS_RUN" != "True" ]; then
+        sudo apt-get update >/dev/null 2>&1
+        APT_UPDATE_HAS_RUN=True
+    fi
+    sudo apt-get install -y ${2} >/dev/null 2>&1
+}
+
 # Define and create temporary directory
 TMP_DIR="tmp_lambda_bug_report"
 mkdir -p "$TMP_DIR"
@@ -58,15 +90,7 @@ APT_UPDATE_HAS_RUN=False
 # Collect SMART data for all drives
 collect_drive_checks() {
     # Ensure smartmontools is installed for smartctl
-    if ! command -v smartctl >/dev/null 2>&1; then
-        echo "smartctl could not be found, attempting to install."
-        if [ "$APT_UPDATE_HAS_RUN" != "True" ]; then
-            sudo apt-get update >/dev/null 2>&1
-            APT_UPDATE_HAS_RUN=True
-        fi
-        sudo apt-get install -y smartmontools >/dev/null 2>&1
-    fi
-
+    install_needed_tool smartmonctl smartmontools
     lsblk -o NAME,MAJ:MIN,RM,SIZE,RO,FSTYPE,LABEL,UUID,TYPE,MOUNTPOINT >"$DRIVES_AND_STORAGE_DIR/lsblk.txt"
 
     # Collect SMART data for all drives
@@ -122,14 +146,7 @@ if [ ! -s "${FINAL_DIR}/ibstat.txt" ]; then
 fi
 
 # Check for ipmitool and install if not present
-if ! command -v ipmitool >/dev/null 2>&1; then
-    echo "ipmitool could not be found, attempting to install."
-    if [ "$APT_UPDATE_HAS_RUN" != "True" ]; then
-        sudo apt-get update >/dev/null 2>&1
-        APT_UPDATE_HAS_RUN=True
-    fi
-    sudo apt-get install -y ipmitool >/dev/null 2>&1
-fi
+install_needed_tool ipmitool ipmitool
 sudo ipmitool sel elist >"${BMC_INFO_DIR}/ipmi-elist.txt" 2>/dev/null
 if [ ! -s "${BMC_INFO_DIR}/ipmi-elist.txt" ]; then
     echo "No IPMI ELIST data available. This machine may not have IPMI." >"${BMC_INFO_DIR}/ipmi-elist.txt"
@@ -140,14 +157,7 @@ if [ ! -s "${BMC_INFO_DIR}/ipmi-sdr.txt" ]; then
 fi
 
 # Check for sensors and install if not present
-if ! command -v sensors >/dev/null 2>&1; then
-    echo "sensors could not be found, attempting to install."
-    if [ "$APT_UPDATE_HAS_RUN" != "True" ]; then
-        sudo apt-get update >/dev/null 2>&1
-        APT_UPDATE_HAS_RUN=True
-    fi
-    sudo apt-get install -y lm-sensors >/dev/null 2>&1
-fi
+install_needed_tool sensors lm-sensors
 sensors >"${FINAL_DIR}/sensors.txt" 2>/dev/null
 
 # Check for iostat and install if not present
