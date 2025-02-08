@@ -28,6 +28,57 @@ script_info_and_disclaimer() {
 
 script_info_and_disclaimer
 
+# We will later check whether this machine will benefit from certain tools, rather than just installing them.
+# Proactively assume the machine is not a VM
+IS_VIRTUAL_MACHINE=0
+
+check_if_virtualized() {
+    SYSTEM_MANUFACTURER="$(sudo dmidecode | grep -A1 "System Information" | grep "Manufacturer" | sed 's/^\tManufacturer: //')"
+    if [[ "${SYSTEM_MANUFACTURER}" == "QEMU" ]]; then
+        IS_VIRTUAL_MACHINE=1
+    else
+        IS_VIRTUAL_MACHINE=0
+    fi
+}
+
+check_if_virtualized
+
+# By default, do not install tools.
+SKIP_TOOLS=${SKIP_TOOLS:-1}
+
+install_needed_tool() {
+    # Usage: install_needed_tool <executable> <package> [0|1]
+    # <executable> is the executable to check to determine if a package needs to be installed
+    # <package> is the package to install if the previous check fails
+    # the third field determines whether this tool is useful on a VM (0 for no, 1 for yes)
+    #
+    # Best practice is to send stderr to /dev/null when using tools installed this way, that way if
+    # the install is skipped the user will not get errors about tools that cannot be run. You can
+    # also check if the output file is empty and note the tool was run, but no output was produced.
+
+    # Proactively assume a tool is not beneficial on a VM
+    VM_TOOL=${3:-0}
+
+    if [ $SKIP_TOOLS -eq 1 ]; then
+        # The script has been told not to install tools, no need to proceed further with this fuction.
+        return
+    fi
+    if [[ $IS_VIRTUAL_MACHINE -eq 1 && $VM_TOOL -eq 0 ]]; then
+        # The tool is not beneficial for a VM, no need to proceed further with this fuction.
+        return
+    fi
+    if command -v ${1} >/dev/null 2>&1; then
+        # The tool is already available, no need to proceed further with this fuction.
+        return
+    fi
+    echo "${1} could not be found, attempting to install."
+    if [ "$APT_UPDATE_HAS_RUN" != "True" ]; then
+        sudo apt-get update >/dev/null 2>&1
+        APT_UPDATE_HAS_RUN=True
+    fi
+    sudo apt-get install -y ${2} >/dev/null 2>&1
+}
+
 # Define and create temporary directory
 TMP_DIR="tmp_lambda_bug_report"
 mkdir -p "$TMP_DIR"
@@ -58,15 +109,7 @@ APT_UPDATE_HAS_RUN=False
 # Collect SMART data for all drives
 collect_drive_checks() {
     # Ensure smartmontools is installed for smartctl
-    if ! command -v smartctl >/dev/null 2>&1; then
-        echo "smartctl could not be found, attempting to install."
-        if [ "$APT_UPDATE_HAS_RUN" != "True" ]; then
-            sudo apt-get update >/dev/null 2>&1
-            APT_UPDATE_HAS_RUN=True
-        fi
-        sudo apt-get install -y smartmontools >/dev/null 2>&1
-    fi
-
+    install_needed_tool smartmonctl smartmontools
     lsblk -o NAME,MAJ:MIN,RM,SIZE,RO,FSTYPE,LABEL,UUID,TYPE,MOUNTPOINT >"$DRIVES_AND_STORAGE_DIR/lsblk.txt"
 
     # Collect SMART data for all drives
@@ -107,29 +150,13 @@ done
 sudo dmesg -Tl err >"${SYSTEM_LOGS_DIR}/dmesg-errors.txt"
 sudo journalctl >"${SYSTEM_LOGS_DIR}/journalctl.txt"
 
-# Check for ibstat and install if not present
-if ! command -v ibstat >/dev/null 2>&1; then
-    echo "ibstat could not be found, attempting to install."
-    if [ "$APT_UPDATE_HAS_RUN" != "True" ]; then
-        sudo apt-get update >/dev/null 2>&1
-        APT_UPDATE_HAS_RUN=True
-    fi
-    sudo apt-get install -y infiniband-diags >/dev/null 2>&1
-fi
-ibstat >"${FINAL_DIR}/ibstat.txt"
+ibstat >"${FINAL_DIR}/ibstat.txt" 2>/dev/null
 if [ ! -s "${FINAL_DIR}/ibstat.txt" ]; then
     echo "No InfiniBand data available. This machine may not have InfiniBand." >"${FINAL_DIR}/ibstat.txt"
 fi
 
 # Check for ipmitool and install if not present
-if ! command -v ipmitool >/dev/null 2>&1; then
-    echo "ipmitool could not be found, attempting to install."
-    if [ "$APT_UPDATE_HAS_RUN" != "True" ]; then
-        sudo apt-get update >/dev/null 2>&1
-        APT_UPDATE_HAS_RUN=True
-    fi
-    sudo apt-get install -y ipmitool >/dev/null 2>&1
-fi
+install_needed_tool ipmitool ipmitool
 sudo ipmitool sel elist >"${BMC_INFO_DIR}/ipmi-elist.txt" 2>/dev/null
 if [ ! -s "${BMC_INFO_DIR}/ipmi-elist.txt" ]; then
     echo "No IPMI ELIST data available. This machine may not have IPMI." >"${BMC_INFO_DIR}/ipmi-elist.txt"
@@ -140,37 +167,25 @@ if [ ! -s "${BMC_INFO_DIR}/ipmi-sdr.txt" ]; then
 fi
 
 # Check for sensors and install if not present
-if ! command -v sensors >/dev/null 2>&1; then
-    echo "sensors could not be found, attempting to install."
-    if [ "$APT_UPDATE_HAS_RUN" != "True" ]; then
-        sudo apt-get update >/dev/null 2>&1
-        APT_UPDATE_HAS_RUN=True
-    fi
-    sudo apt-get install -y lm-sensors >/dev/null 2>&1
-fi
+install_needed_tool sensors lm-sensors
 sensors >"${FINAL_DIR}/sensors.txt" 2>/dev/null
+if [ ! -s "${FINAL_DIR}/sensors.txt" ]; then
+    echo "No sensor data available. This machine may not have sensors." >"${FINAL_DIR}/sensors.txt"
+fi
 
 # Check for iostat and install if not present
-if ! command -v iostat >/dev/null 2>&1; then
-    echo "iostat could not be found, attempting to install."
-    if [ "$APT_UPDATE_HAS_RUN" != "True" ]; then
-        sudo apt-get update >/dev/null 2>&1
-        APT_UPDATE_HAS_RUN=True
-    fi
-    sudo apt-get install -y sysstat >/dev/null 2>&1
+install_needed_tool iostat sysstat 1
+sudo iostat -xt >"${DRIVES_AND_STORAGE_DIR}/iostat.txt" 2>/dev/null
+if [ ! -s "${DRIVES_AND_STORAGE_DIR}/iostat.txt" ]; then
+    echo "No iostat data available. This machine may not have iostat." >"${DRIVES_AND_STORAGE_DIR}/iostat.txt"
 fi
-sudo iostat -xt >"${DRIVES_AND_STORAGE_DIR}/iostat.txt"
 
 # Check for lshw and install if not present
-if ! command -v lshw >/dev/null 2>&1; then
-    echo "lshw could not be found, attempting to install."
-    if [ "$APT_UPDATE_HAS_RUN" != "True" ]; then
-        sudo apt-get update >/dev/null 2>&1
-        APT_UPDATE_HAS_RUN=True
-    fi
-    sudo apt-get install -y lshw >/dev/null 2>&1
+install_needed_tool lshw lshw 1
+sudo lshw >"${FINAL_DIR}/hw-list.txt" 2>/dev/null
+if [ ! -s "${FINAL_DIR}/hw-list.txt" ]; then
+    echo "No lshw data available. This machine may not have lshw." >"${FINAL_DIR}/hw-list.txt"
 fi
-sudo lshw >"${FINAL_DIR}/hw-list.txt"
 
 # Collect SW Raid info
 if command -v mdadm >/dev/null 2>&1; then
@@ -187,13 +202,22 @@ fi
 
 # Check for memory remapping and memory errors on GPUs
 nvidia-smi --query-remapped-rows=gpu_bus_id,gpu_uuid,remapped_rows.correctable,remapped_rows.uncorrectable,remapped_rows.pending,remapped_rows.failure \
-    --format=csv >"${GPU_MEMORY_ERRORS_DIR}/remapped-memory.txt"
+    --format=csv >"${GPU_MEMORY_ERRORS_DIR}/remapped-memory.txt" 2>&1
+if [ ! -s "${GPU_MEMORY_ERRORS_DIR}/remapped-memory.txt" ]; then
+    echo "No nvidia-smi data available. This machine may not have nvidia-smi." >"${GPU_MEMORY_ERRORS_DIR}/remapped-memory.txt"
+fi
 
 nvidia-smi --query-gpu=index,pci.bus_id,uuid,ecc.errors.corrected.volatile.dram,ecc.errors.corrected.volatile.sram \
-    --format=csv >"${GPU_MEMORY_ERRORS_DIR}/ecc-errors.txt"
+    --format=csv >"${GPU_MEMORY_ERRORS_DIR}/ecc-errors.txt" 2>&1
+if [ ! -s "${GPU_MEMORY_ERRORS_DIR}/ecc-errors.txt" ]; then
+    echo "No nvidia-smi data available. This machine may not have nvidia-smi." >"${GPU_MEMORY_ERRORS_DIR}/ecc-errors.txt"
+fi
 
 nvidia-smi --query-gpu=index,pci.bus_id,uuid,ecc.errors.uncorrected.aggregate.dram,ecc.errors.uncorrected.aggregate.sram \
-    --format=csv >"${GPU_MEMORY_ERRORS_DIR}/uncorrected-ecc_errors.txt"
+    --format=csv >"${GPU_MEMORY_ERRORS_DIR}/uncorrected-ecc_errors.txt" 2>&1
+if [ ! -s "${GPU_MEMORY_ERRORS_DIR}/uncorrected-ecc_errors.txt" ]; then
+    echo "No nvidia-smi data available. This machine may not have nvidia-smi." >"${GPU_MEMORY_ERRORS_DIR}/uncorrected-ecc_errors.txt"
+fi
 
 # Check hibernation settings
 sudo systemctl status hibernate.target hybrid-sleep.target \
@@ -231,13 +255,15 @@ sudo iptables -L --line-numbers >"${NETWORKING_DIR}/iptables.txt"
 sudo ufw status >"${NETWORKING_DIR}/ufw-status.txt"
 sudo resolvectl status >"${NETWORKING_DIR}/resolvectl-status.txt"
 top -n 1 -b >"${FINAL_DIR}/top.txt"
-nvidia-smi >"${FINAL_DIR}/nvidia-smi.txt"
-<<<<<<< HEAD
-nvidia-smi -q | grep -E "Serial Number|Bus Id" >"${FINAL_DIR}/gpu-serials.txt"
-ss --tcp --udp --listening --numeric >"${NETWORKING_DIR}/ss.txt"
-=======
+nvidia-smi >"${FINAL_DIR}/nvidia-smi.txt" 2>&1
+if [ ! -s "${FINAL_DIR}/nvidia-smi.txt" ]; then
+    echo "No nvidia-smi data available. This machine may not have nvidia-smi." >"${FINAL_DIR}/nvidia-smi.txt"
+fi
+nvidia-smi -q | grep -E "Serial Number|Bus Id" >"${FINAL_DIR}/gpu-serials.txt" 2>&1
+if [ ! -s "${FINAL_DIR}/gpu-serials.txt" ]; then
+    echo "No nvidia-smi data available. This machine may not have nvidia-smi." >"${FINAL_DIR}/gpu-serials.txt"
+fi
 sudo ss --tcp --udp --listening --numeric --process >"${NETWORKING_DIR}/ss.txt"
->>>>>>> origin/main
 echo "$(uptime -p)" since "$(uptime -s)" >"${FINAL_DIR}/uptime.txt"
 
 collect_drive_checks
