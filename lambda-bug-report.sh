@@ -43,7 +43,14 @@ check_if_virtualized() {
 
 check_if_virtualized
 
+# By default, do not install tools.
+SKIP_TOOLS=${SKIP_TOOLS:-1}
+
 install_needed_tool() {
+    if [ $SKIP_TOOLS -eq 1 ]; then
+        # The script has been told not to install tools, no need to proceed further with this fuction.
+        return
+    fi
     if [ $IS_VIRTUAL_MACHINE -eq 0 ]; then
         # The tool is not beneficial for a VM, no need to proceed further with this fuction.
         return
@@ -132,14 +139,7 @@ sudo dmesg -Tl err >"${SYSTEM_LOGS_DIR}/dmesg-errors.txt"
 sudo journalctl >"${SYSTEM_LOGS_DIR}/journalctl.txt"
 
 # Check for ibstat and install if not present
-if ! command -v ibstat >/dev/null 2>&1; then
-    echo "ibstat could not be found, attempting to install."
-    if [ "$APT_UPDATE_HAS_RUN" != "True" ]; then
-        sudo apt-get update >/dev/null 2>&1
-        APT_UPDATE_HAS_RUN=True
-    fi
-    sudo apt-get install -y infiniband-diags >/dev/null 2>&1
-fi
+install_needed_tool ibstat infiniband-diags
 ibstat >"${FINAL_DIR}/ibstat.txt"
 if [ ! -s "${FINAL_DIR}/ibstat.txt" ]; then
     echo "No InfiniBand data available. This machine may not have InfiniBand." >"${FINAL_DIR}/ibstat.txt"
@@ -161,25 +161,11 @@ install_needed_tool sensors lm-sensors
 sensors >"${FINAL_DIR}/sensors.txt" 2>/dev/null
 
 # Check for iostat and install if not present
-if ! command -v iostat >/dev/null 2>&1; then
-    echo "iostat could not be found, attempting to install."
-    if [ "$APT_UPDATE_HAS_RUN" != "True" ]; then
-        sudo apt-get update >/dev/null 2>&1
-        APT_UPDATE_HAS_RUN=True
-    fi
-    sudo apt-get install -y sysstat >/dev/null 2>&1
-fi
+install_needed_tool iostat sysstat
 sudo iostat -xt >"${DRIVES_AND_STORAGE_DIR}/iostat.txt"
 
 # Check for lshw and install if not present
-if ! command -v lshw >/dev/null 2>&1; then
-    echo "lshw could not be found, attempting to install."
-    if [ "$APT_UPDATE_HAS_RUN" != "True" ]; then
-        sudo apt-get update >/dev/null 2>&1
-        APT_UPDATE_HAS_RUN=True
-    fi
-    sudo apt-get install -y lshw >/dev/null 2>&1
-fi
+install_needed_tool lshw lshw
 sudo lshw >"${FINAL_DIR}/hw-list.txt"
 
 # Collect SW Raid info
