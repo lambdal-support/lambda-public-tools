@@ -30,14 +30,14 @@ script_info_and_disclaimer
 
 # We will later check whether this machine will benefit from certain tools, rather than just installing them.
 # Proactively assume the machine is not a VM
-IS_VIRTUAL_MACHINE=1
+IS_VIRTUAL_MACHINE=0
 
 check_if_virtualized() {
     SYSTEM_MANUFACTURER="$(sudo dmidecode | grep -A1 "System Information" | grep "Manufacturer" | sed 's/^\tManufacturer: //')"
     if [[ "${SYSTEM_MANUFACTURER}" == "QEMU" ]]; then
-        IS_VIRTUAL_MACHINE=0
-    else
         IS_VIRTUAL_MACHINE=1
+    else
+        IS_VIRTUAL_MACHINE=0
     fi
 }
 
@@ -51,7 +51,7 @@ install_needed_tool() {
         # The script has been told not to install tools, no need to proceed further with this fuction.
         return
     fi
-    if [ $IS_VIRTUAL_MACHINE -eq 0 ]; then
+    if [ $IS_VIRTUAL_MACHINE -eq 1 ]; then
         # The tool is not beneficial for a VM, no need to proceed further with this fuction.
         return
     fi
