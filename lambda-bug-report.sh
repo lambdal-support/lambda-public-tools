@@ -150,8 +150,6 @@ done
 sudo dmesg -Tl err >"${SYSTEM_LOGS_DIR}/dmesg-errors.txt"
 sudo journalctl >"${SYSTEM_LOGS_DIR}/journalctl.txt"
 
-# Check for ibstat and install if not present
-install_needed_tool ibstat infiniband-diags 1
 ibstat >"${FINAL_DIR}/ibstat.txt" 2>/dev/null
 if [ ! -s "${FINAL_DIR}/ibstat.txt" ]; then
     echo "No InfiniBand data available. This machine may not have InfiniBand." >"${FINAL_DIR}/ibstat.txt"
