@@ -47,11 +47,19 @@ check_if_virtualized
 SKIP_TOOLS=${SKIP_TOOLS:-1}
 
 install_needed_tool() {
+    # Usage: install_needed_tool <executable> <package> [0|1]
+    # <executable> is the executable to check to determine if a package needs to be installed
+    # <package> is the package to install if the previous check fails
+    # the third field determines whether this tool is useful on a VM (0 for no, 1 for yes)
+
+    # Proactively assume a tool is not beneficial on a VM
+    VM_TOOL=${3:-0}
+
     if [ $SKIP_TOOLS -eq 1 ]; then
         # The script has been told not to install tools, no need to proceed further with this fuction.
         return
     fi
-    if [ $IS_VIRTUAL_MACHINE -eq 1 ]; then
+    if [[ $IS_VIRTUAL_MACHINE -eq 1 && $VM_TOOL -eq 0 ]]; then
         # The tool is not beneficial for a VM, no need to proceed further with this fuction.
         return
     fi
@@ -139,7 +147,7 @@ sudo dmesg -Tl err >"${SYSTEM_LOGS_DIR}/dmesg-errors.txt"
 sudo journalctl >"${SYSTEM_LOGS_DIR}/journalctl.txt"
 
 # Check for ibstat and install if not present
-install_needed_tool ibstat infiniband-diags
+install_needed_tool ibstat infiniband-diags 1
 ibstat >"${FINAL_DIR}/ibstat.txt"
 if [ ! -s "${FINAL_DIR}/ibstat.txt" ]; then
     echo "No InfiniBand data available. This machine may not have InfiniBand." >"${FINAL_DIR}/ibstat.txt"
@@ -161,11 +169,11 @@ install_needed_tool sensors lm-sensors
 sensors >"${FINAL_DIR}/sensors.txt" 2>/dev/null
 
 # Check for iostat and install if not present
-install_needed_tool iostat sysstat
+install_needed_tool iostat sysstat 1
 sudo iostat -xt >"${DRIVES_AND_STORAGE_DIR}/iostat.txt"
 
 # Check for lshw and install if not present
-install_needed_tool lshw lshw
+install_needed_tool lshw lshw 1
 sudo lshw >"${FINAL_DIR}/hw-list.txt"
 
 # Collect SW Raid info
