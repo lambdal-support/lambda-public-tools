@@ -259,6 +259,7 @@ nvidia-smi >"${FINAL_DIR}/nvidia-smi.txt" 2>&1
 if [ ! -s "${FINAL_DIR}/nvidia-smi.txt" ]; then
     echo "No nvidia-smi data available. This machine may not have nvidia-smi." >"${FINAL_DIR}/nvidia-smi.txt"
 fi
+nvidia-smi -q | grep -E "Serial Number|Bus Id" >"${FINAL_DIR}/gpu-serials.txt"
 sudo ss --tcp --udp --listening --numeric --process >"${NETWORKING_DIR}/ss.txt"
 echo "$(uptime -p)" since "$(uptime -s)" >"${FINAL_DIR}/uptime.txt"
 
