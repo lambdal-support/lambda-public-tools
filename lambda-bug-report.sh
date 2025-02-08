@@ -202,13 +202,22 @@ fi
 
 # Check for memory remapping and memory errors on GPUs
 nvidia-smi --query-remapped-rows=gpu_bus_id,gpu_uuid,remapped_rows.correctable,remapped_rows.uncorrectable,remapped_rows.pending,remapped_rows.failure \
-    --format=csv >"${GPU_MEMORY_ERRORS_DIR}/remapped-memory.txt"
+    --format=csv >"${GPU_MEMORY_ERRORS_DIR}/remapped-memory.txt" 2>&1
+if [ ! -s "${GPU_MEMORY_ERRORS_DIR}/remapped-memory.txt" ]; then
+    echo "No nvidia-smi data available. This machine may not have nvidia-smi." >"${GPU_MEMORY_ERRORS_DIR}/remapped-memory.txt"
+fi
 
 nvidia-smi --query-gpu=index,pci.bus_id,uuid,ecc.errors.corrected.volatile.dram,ecc.errors.corrected.volatile.sram \
-    --format=csv >"${GPU_MEMORY_ERRORS_DIR}/ecc-errors.txt"
+    --format=csv >"${GPU_MEMORY_ERRORS_DIR}/ecc-errors.txt" 2>&1
+if [ ! -s "${GPU_MEMORY_ERRORS_DIR}/ecc-errors.txt" ]; then
+    echo "No nvidia-smi data available. This machine may not have nvidia-smi." >"${GPU_MEMORY_ERRORS_DIR}/ecc-errors.txt"
+fi
 
 nvidia-smi --query-gpu=index,pci.bus_id,uuid,ecc.errors.uncorrected.aggregate.dram,ecc.errors.uncorrected.aggregate.sram \
-    --format=csv >"${GPU_MEMORY_ERRORS_DIR}/uncorrected-ecc_errors.txt"
+    --format=csv >"${GPU_MEMORY_ERRORS_DIR}/uncorrected-ecc_errors.txt" 2>&1
+if [ ! -s "${GPU_MEMORY_ERRORS_DIR}/uncorrected-ecc_errors.txt" ]; then
+    echo "No nvidia-smi data available. This machine may not have nvidia-smi." >"${GPU_MEMORY_ERRORS_DIR}/uncorrected-ecc_errors.txt"
+fi
 
 # Check hibernation settings
 sudo systemctl status hibernate.target hybrid-sleep.target \
@@ -246,7 +255,10 @@ sudo iptables -L --line-numbers >"${NETWORKING_DIR}/iptables.txt"
 sudo ufw status >"${NETWORKING_DIR}/ufw-status.txt"
 sudo resolvectl status >"${NETWORKING_DIR}/resolvectl-status.txt"
 top -n 1 -b >"${FINAL_DIR}/top.txt"
-nvidia-smi >"${FINAL_DIR}/nvidia-smi.txt"
+nvidia-smi >"${FINAL_DIR}/nvidia-smi.txt" 2>&1
+if [ ! -s "${FINAL_DIR}/nvidia-smi.txt" ]; then
+    echo "No nvidia-smi data available. This machine may not have nvidia-smi." >"${FINAL_DIR}/nvidia-smi.txt"
+fi
 sudo ss --tcp --udp --listening --numeric --process >"${NETWORKING_DIR}/ss.txt"
 echo "$(uptime -p)" since "$(uptime -s)" >"${FINAL_DIR}/uptime.txt"
 
