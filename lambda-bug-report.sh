@@ -76,9 +76,9 @@ install_needed_tools() {
         set -- $(echo ${NEEDED_TOOLS[${CURRENT_TOOL}]} | tr -d ',')
 
         # Proactively assume a tool is not beneficial on a VM
-        VM_TOOL=${3:-0}
+        IS_VM_TOOL=${3:-0}
 
-        if [[ $IS_VIRTUAL_MACHINE -eq 1 && $VM_TOOL -eq 0 ]]; then
+        if [[ $IS_VIRTUAL_MACHINE -eq 1 && $IS_VM_TOOL -eq 0 ]]; then
             # The tool is not beneficial for a VM, no need to proceed further with this iteration of the loop.
             CURRENT_TOOL=$((${CURRENT_TOOL}+1))
             continue
