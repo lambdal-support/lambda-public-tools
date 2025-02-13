@@ -16,8 +16,14 @@ script_info_and_disclaimer() {
     echo "It includes the use of NVIDIA's bug report script to gather detailed information about NVIDIA GPUs and other system info."
     echo "Credit to NVIDIA Corporation for the nvidia-bug-report.sh script."
     echo
-    echo "This script will attempt to install any missing packages required for collecting system information."
-    echo "Packages will include smartmontools, infiniband-diags, ipmitool, lm-sensors, sysstat, and lshw."
+    echo "This script will, optionally, attempt to install any missing packages required for collecting system information."
+    echo "This script may install the following:"
+    CURRENT_TOOL=0
+    while [ ${CURRENT_TOOL} -lt ${#NEEDED_TOOLS[@]} ]; do
+        set -- $(echo ${NEEDED_TOOLS[${CURRENT_TOOL}]} | tr -d ',')
+        echo " * ${2}"
+        CURRENT_TOOL=$((${CURRENT_TOOL}+1))
+    done
     echo
     echo "By delivering 'lambda-bug-report.log.gz' to Lambda, you acknowledge"
     echo "and agree that sensitive information may inadvertently be included in"
@@ -25,8 +31,6 @@ script_info_and_disclaimer() {
     echo "output only for the purpose of investigating your reported issue."
     echo
 }
-
-script_info_and_disclaimer
 
 # We will later check whether this machine will benefit from certain tools, rather than just installing them.
 # Proactively assume the machine is not a VM
@@ -41,43 +45,63 @@ check_if_virtualized() {
     fi
 }
 
-check_if_virtualized
+# List the tools to install and any tool metadata
+# Usage:
+#     executable to check for,
+#     package name,
+#     tool is useful for VMs (0 = no, 1 = yes)
+declare -a NEEDED_TOOLS
+NEEDED_TOOLS=(
+    "smartmonctl, smartmontools, 0",
+    "ipmitool, ipmitool, 0",
+    "sensors, lm-sensors, 0",
+    "iostat, sysstat, 1",
+    "lshw, lshw, 1"
+)
 
 # By default, do not install tools.
 SKIP_TOOLS=${SKIP_TOOLS:-1}
 
-install_needed_tool() {
-    # Usage: install_needed_tool <executable> <package> [0|1]
-    # <executable> is the executable to check to determine if a package needs to be installed
-    # <package> is the package to install if the previous check fails
-    # the third field determines whether this tool is useful on a VM (0 for no, 1 for yes)
-    #
-    # Best practice is to send stderr to /dev/null when using tools installed this way, that way if
-    # the install is skipped the user will not get errors about tools that cannot be run. You can
-    # also check if the output file is empty and note the tool was run, but no output was produced.
-
-    # Proactively assume a tool is not beneficial on a VM
-    VM_TOOL=${3:-0}
-
+install_needed_tools() {
     if [ $SKIP_TOOLS -eq 1 ]; then
         # The script has been told not to install tools, no need to proceed further with this fuction.
         return
     fi
-    if [[ $IS_VIRTUAL_MACHINE -eq 1 && $VM_TOOL -eq 0 ]]; then
-        # The tool is not beneficial for a VM, no need to proceed further with this fuction.
-        return
-    fi
-    if command -v ${1} >/dev/null 2>&1; then
-        # The tool is already available, no need to proceed further with this fuction.
-        return
-    fi
-    echo "${1} could not be found, attempting to install."
-    if [ "$APT_UPDATE_HAS_RUN" != "True" ]; then
-        sudo apt-get update >/dev/null 2>&1
-        APT_UPDATE_HAS_RUN=True
-    fi
-    sudo apt-get install -y ${2} >/dev/null 2>&1
+
+    sudo apt-get update >/dev/null 2>&1
+
+    CURRENT_TOOL=0
+    while [ ${CURRENT_TOOL} -lt ${#NEEDED_TOOLS[@]} ]; do
+        # Bash does not have multidimensional arrays, but it's possible to make do in a way that is reasonably easy to read.
+        set -- $(echo ${NEEDED_TOOLS[${CURRENT_TOOL}]} | tr -d ',')
+
+        # Proactively assume a tool is not beneficial on a VM
+        VM_TOOL=${3:-0}
+
+        if [[ $IS_VIRTUAL_MACHINE -eq 1 && $VM_TOOL -eq 0 ]]; then
+            # The tool is not beneficial for a VM, no need to proceed further with this iteration of the loop.
+            CURRENT_TOOL=$((${CURRENT_TOOL}+1))
+            continue
+        fi
+
+        if command -v ${1} >/dev/null 2>&1; then
+            # The tool is already available, no need to proceed further with this iteration of the loop.
+            CURRENT_TOOL=$((${CURRENT_TOOL}+1))
+            continue
+        fi
+
+        echo Installing
+        sudo apt-get install -y ${2} >/dev/null 2>&1
+
+        CURRENT_TOOL=$((${CURRENT_TOOL}+1))
+    done
 }
+
+script_info_and_disclaimer
+
+check_if_virtualized
+
+install_needed_tools
 
 # Define and create temporary directory
 TMP_DIR="tmp_lambda_bug_report"
@@ -108,8 +132,6 @@ APT_UPDATE_HAS_RUN=False
 
 # Collect SMART data for all drives
 collect_drive_checks() {
-    # Ensure smartmontools is installed for smartctl
-    install_needed_tool smartmonctl smartmontools
     lsblk -o NAME,MAJ:MIN,RM,SIZE,RO,FSTYPE,LABEL,UUID,TYPE,MOUNTPOINT >"$DRIVES_AND_STORAGE_DIR/lsblk.txt"
 
     # Collect SMART data for all drives
@@ -155,8 +177,6 @@ if [ ! -s "${FINAL_DIR}/ibstat.txt" ]; then
     echo "No InfiniBand data available. This machine may not have InfiniBand." >"${FINAL_DIR}/ibstat.txt"
 fi
 
-# Check for ipmitool and install if not present
-install_needed_tool ipmitool ipmitool
 sudo ipmitool sel elist >"${BMC_INFO_DIR}/ipmi-elist.txt" 2>/dev/null
 if [ ! -s "${BMC_INFO_DIR}/ipmi-elist.txt" ]; then
     echo "No IPMI ELIST data available. This machine may not have IPMI." >"${BMC_INFO_DIR}/ipmi-elist.txt"
@@ -166,22 +186,16 @@ if [ ! -s "${BMC_INFO_DIR}/ipmi-sdr.txt" ]; then
     echo "No IPMI SDR data available. This machine may not have IPMI." >"${BMC_INFO_DIR}/ipmi-sdr.txt"
 fi
 
-# Check for sensors and install if not present
-install_needed_tool sensors lm-sensors
 sensors >"${FINAL_DIR}/sensors.txt" 2>/dev/null
 if [ ! -s "${FINAL_DIR}/sensors.txt" ]; then
     echo "No sensor data available. This machine may not have sensors." >"${FINAL_DIR}/sensors.txt"
 fi
 
-# Check for iostat and install if not present
-install_needed_tool iostat sysstat 1
 sudo iostat -xt >"${DRIVES_AND_STORAGE_DIR}/iostat.txt" 2>/dev/null
 if [ ! -s "${DRIVES_AND_STORAGE_DIR}/iostat.txt" ]; then
     echo "No iostat data available. This machine may not have iostat." >"${DRIVES_AND_STORAGE_DIR}/iostat.txt"
 fi
 
-# Check for lshw and install if not present
-install_needed_tool lshw lshw 1
 sudo lshw >"${FINAL_DIR}/hw-list.txt" 2>/dev/null
 if [ ! -s "${FINAL_DIR}/hw-list.txt" ]; then
     echo "No lshw data available. This machine may not have lshw." >"${FINAL_DIR}/hw-list.txt"
