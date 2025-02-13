@@ -127,9 +127,6 @@ mkdir -p "$BMC_INFO_DIR"
 GRUB_DIR="$FINAL_DIR/grub"
 mkdir -p "$GRUB_DIR"
 
-#Global variables
-APT_UPDATE_HAS_RUN=False
-
 # Collect SMART data for all drives
 collect_drive_checks() {
     lsblk -o NAME,MAJ:MIN,RM,SIZE,RO,FSTYPE,LABEL,UUID,TYPE,MOUNTPOINT >"$DRIVES_AND_STORAGE_DIR/lsblk.txt"
