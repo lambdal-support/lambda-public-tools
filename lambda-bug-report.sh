@@ -90,6 +90,22 @@ update_needed_tools() {
     NEEDED_TOOLS[${1}]="$(echo ${NEEDED_TOOLS[${1}]} | awk -F ', ' -v OFS=', ' "{ \$${2}="${3}"; print }")"
 }
 
+validate_tools_array() {
+    # Ensure the tools array looks sensible, based on the structural rules.
+    CURRENT_TOOL=0
+    while [ ${CURRENT_TOOL} -lt ${#NEEDED_TOOLS[@]} ]; do
+        set -- $(echo ${NEEDED_TOOLS[${CURRENT_TOOL}]} | tr -d ',')
+
+    if [[ ! $(integer_check "${3}") -eq 1 || ! $(integer_check "${4}") -eq 1 ]]; then
+        echo "An executable check status or VM tool value supplied in NEEDED_TOOLS was not an integer."
+        echo "Please report this issue to Lambda support for review."
+        exit 1
+    fi
+
+        CURRENT_TOOL=$((${CURRENT_TOOL}+1))
+    done
+}
+
 # By default, do not install tools.
 SKIP_TOOLS=${SKIP_TOOLS:-1}
 
@@ -137,6 +153,8 @@ check_needed_tools() {
 script_info_and_disclaimer
 
 check_if_virtualized
+
+validate_tools_array
 
 check_needed_tools
 
