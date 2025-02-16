@@ -93,7 +93,7 @@ update_needed_tools() {
 # By default, do not install tools.
 SKIP_TOOLS=${SKIP_TOOLS:-1}
 
-install_needed_tools() {
+check_needed_tools() {
     if [ $SKIP_TOOLS -eq 0 ]; then
         sudo apt-get update >/dev/null 2>&1
     fi
@@ -138,7 +138,7 @@ script_info_and_disclaimer
 
 check_if_virtualized
 
-install_needed_tools
+check_needed_tools
 
 # Define and create temporary directory
 TMP_DIR="tmp_lambda_bug_report"
