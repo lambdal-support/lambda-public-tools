@@ -47,9 +47,9 @@ check_if_virtualized() {
 
 # List the tools to install and any tool metadata
 # Usage:
-#     executable to check for,
-#     package name,
-#     tool is useful for VMs (0 = no, 1 = yes)
+#    1: executable to check for,
+#    2: package name,
+#    3: tool is useful for VMs (0 = no, 1 = yes)
 declare -a NEEDED_TOOLS
 NEEDED_TOOLS=(
     "smartmonctl, smartmontools, 0",
