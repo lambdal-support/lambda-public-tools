@@ -90,7 +90,7 @@ install_needed_tools() {
             continue
         fi
 
-        echo Installing
+        echo Installing ${2}
         sudo apt-get install -y ${2} >/dev/null 2>&1
 
         CURRENT_TOOL=$((${CURRENT_TOOL}+1))
