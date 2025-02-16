@@ -35,11 +35,11 @@ script_info_and_disclaimer() {
 integer_check() {
     if [[ ! "${1}" =~ ^-?[0-9]+$ ]]; then
         echo 0
-        return 0
+        return
     fi
 
     echo 1
-    return 1
+    return
 }
 
 # We will later check whether this machine will benefit from certain tools, rather than just installing them.
