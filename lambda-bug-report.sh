@@ -17,13 +17,14 @@ script_info_and_disclaimer() {
     echo "Credit to NVIDIA Corporation for the nvidia-bug-report.sh script."
     echo
     echo "This script will, optionally, attempt to install any missing packages required for collecting system information."
-    echo "This script may install the following:"
+    echo "This script may install the following, dependent on them being useful based on the detected target system:"
     CURRENT_TOOL=0
     while [ ${CURRENT_TOOL} -lt ${#NEEDED_TOOLS[@]} ]; do
         set -- $(echo ${NEEDED_TOOLS[${CURRENT_TOOL}]} | tr -d ',')
         echo " * ${2}"
         CURRENT_TOOL=$((${CURRENT_TOOL}+1))
-    done
+    done | sort
+    echo "To install these tools set the environment variable SKIP_TOOLS to 0."
     echo
     echo "By delivering 'lambda-bug-report.log.gz' to Lambda, you acknowledge"
     echo "and agree that sensitive information may inadvertently be included in"
