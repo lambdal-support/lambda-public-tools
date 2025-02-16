@@ -32,6 +32,16 @@ script_info_and_disclaimer() {
     echo
 }
 
+integer_check() {
+    if [[ ! "${1}" =~ ^-?[0-9]+$ ]]; then
+        echo 0
+        return 0
+    fi
+
+    echo 1
+    return 1
+}
+
 # We will later check whether this machine will benefit from certain tools, rather than just installing them.
 # Proactively assume the machine is not a VM
 IS_VIRTUAL_MACHINE=0
@@ -69,6 +79,13 @@ update_needed_tools() {
     #    3: new value for argument
     # Example changing the status of an executable check:
     #    update_needed_tools 0 3 1
+
+    # Verify the index and argument supplied are integers or exit.
+    if [[ ! $(integer_check "${1}") -eq 1 || ! $(integer_check "${2}") -eq 1 ]]; then
+        echo "An index or argument supplied in update_needed_tools was not an integer."
+        echo "Please report this issue to Lambda support for review."
+        exit 1
+    fi
 
     NEEDED_TOOLS[${1}]="$(echo ${NEEDED_TOOLS[${1}]} | awk -F ', ' -v OFS=', ' "{ \$${2}="${3}"; print }")"
 }
