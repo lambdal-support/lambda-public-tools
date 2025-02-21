@@ -17,19 +17,46 @@ script_info_and_disclaimer() {
     echo "Credit to NVIDIA Corporation for the nvidia-bug-report.sh script."
     echo
     echo "This script will, optionally, attempt to install any missing packages required for collecting system information."
-    echo "This script may install the following:"
+    echo "This script may install the following, dependent on them being useful based on the detected target system:"
     CURRENT_TOOL=0
     while [ ${CURRENT_TOOL} -lt ${#NEEDED_TOOLS[@]} ]; do
         set -- $(echo ${NEEDED_TOOLS[${CURRENT_TOOL}]} | tr -d ',')
         echo " * ${2}"
         CURRENT_TOOL=$((${CURRENT_TOOL}+1))
-    done
+    done | sort
+    confirm_tools
     echo
     echo "By delivering 'lambda-bug-report.log.gz' to Lambda, you acknowledge"
     echo "and agree that sensitive information may inadvertently be included in"
     echo "the output. Notwithstanding the foregoing, Lambda will use the"
     echo "output only for the purpose of investigating your reported issue."
     echo
+}
+
+confirm_tools() {
+    if [[ -v $SKIP_TOOLS && $SKIP_TOOLS -eq 0 ]]; then
+        # The user has non-interactively approved, so no need to proceed with this function.
+        return
+    fi
+
+    echo "You may use the environment variable SKIP_TOOLS=0 to answer Y to the following prompt automatically:"
+    read -N 1 -p "Press Y to install these tools, press any other key to continue without them. " CONFIRM_TOOLS < /dev/tty
+    echo
+    if [[ "${CONFIRM_TOOLS,,}" == "y" ]]; then
+        SKIP_TOOLS=0
+    else
+        SKIP_TOOLS=1
+    fi
+}
+
+integer_check() {
+    if [[ ! "${1}" =~ ^-?[0-9]+$ ]]; then
+        echo 0
+        return
+    fi
+
+    echo 1
+    return
 }
 
 # We will later check whether this machine will benefit from certain tools, rather than just installing them.
@@ -47,28 +74,59 @@ check_if_virtualized() {
 
 # List the tools to install and any tool metadata
 # Usage:
-#     executable to check for,
-#     package name,
-#     tool is useful for VMs (0 = no, 1 = yes)
+#    1: executable to check for,
+#    2: package name,
+#    3: executable check status of 2 (0 = fail, 1 = success, 2 = unchecked)
+#    4: tool is useful for VMs (0 = no, 1 = yes)
+# This array should not be modified after set, except through the update_needed_tools function.
 declare -a NEEDED_TOOLS
 NEEDED_TOOLS=(
-    "smartmonctl, smartmontools, 0",
-    "ipmitool, ipmitool, 0",
-    "sensors, lm-sensors, 0",
-    "iostat, sysstat, 1",
-    "lshw, lshw, 1"
+    "smartmonctl, smartmontools, 2, 0",
+    "ipmitool, ipmitool, 2, 0",
+    "sensors, lm-sensors, 2, 0",
+    "iostat, sysstat, 2, 1",
+    "lshw, lshw, 2, 1"
 )
 
-# By default, do not install tools.
-SKIP_TOOLS=${SKIP_TOOLS:-1}
+update_needed_tools() {
+    # Update a field in the NEEDED_TOOLS array
+    # Usage:
+    #    1: index of tool in array
+    #    2: argument to update
+    #    3: new value for argument
+    # Example changing the status of an executable check:
+    #    update_needed_tools 0 3 1
 
-install_needed_tools() {
-    if [ $SKIP_TOOLS -eq 1 ]; then
-        # The script has been told not to install tools, no need to proceed further with this fuction.
-        return
+    # Verify the index and argument supplied are integers or exit.
+    if [[ ! $(integer_check "${1}") -eq 1 || ! $(integer_check "${2}") -eq 1 ]]; then
+        echo "An index or argument supplied in update_needed_tools was not an integer."
+        echo "Please report this issue to Lambda support for review."
+        exit 1
     fi
 
-    sudo apt-get update >/dev/null 2>&1
+    NEEDED_TOOLS[${1}]="$(echo ${NEEDED_TOOLS[${1}]} | awk -F ', ' -v OFS=', ' "{ \$${2}="${3}"; print }")"
+}
+
+validate_tools_array() {
+    # Ensure the tools array looks sensible, based on the structural rules.
+    CURRENT_TOOL=0
+    while [ ${CURRENT_TOOL} -lt ${#NEEDED_TOOLS[@]} ]; do
+        set -- $(echo ${NEEDED_TOOLS[${CURRENT_TOOL}]} | tr -d ',')
+
+    if [[ ! $(integer_check "${3}") -eq 1 || ! $(integer_check "${4}") -eq 1 ]]; then
+        echo "An executable check status or VM tool value supplied in NEEDED_TOOLS was not an integer."
+        echo "Please report this issue to Lambda support for review."
+        exit 1
+    fi
+
+        CURRENT_TOOL=$((${CURRENT_TOOL}+1))
+    done
+}
+
+check_needed_tools() {
+    if [ $SKIP_TOOLS -eq 0 ]; then
+        sudo apt-get update >/dev/null 2>&1
+    fi
 
     CURRENT_TOOL=0
     while [ ${CURRENT_TOOL} -lt ${#NEEDED_TOOLS[@]} ]; do
@@ -76,7 +134,22 @@ install_needed_tools() {
         set -- $(echo ${NEEDED_TOOLS[${CURRENT_TOOL}]} | tr -d ',')
 
         # Proactively assume a tool is not beneficial on a VM
-        IS_VM_TOOL=${3:-0}
+        IS_VM_TOOL=${4:-0}
+
+        if ! command -v ${1} >/dev/null 2>&1; then
+            update_needed_tools ${CURRENT_TOOL} 3 0
+        else
+            update_needed_tools ${CURRENT_TOOL} 3 1
+            # The tool is already available, no need to proceed further with this iteration of the loop.
+            CURRENT_TOOL=$((${CURRENT_TOOL}+1))
+            continue
+        fi
+
+        if [ $SKIP_TOOLS -eq 1 ]; then
+            # The script has been told not to install tools, no need to proceed further with this iteration of the loop.
+            CURRENT_TOOL=$((${CURRENT_TOOL}+1))
+            continue
+        fi
 
         if [[ $IS_VIRTUAL_MACHINE -eq 1 && $IS_VM_TOOL -eq 0 ]]; then
             # The tool is not beneficial for a VM, no need to proceed further with this iteration of the loop.
@@ -84,13 +157,7 @@ install_needed_tools() {
             continue
         fi
 
-        if command -v ${1} >/dev/null 2>&1; then
-            # The tool is already available, no need to proceed further with this iteration of the loop.
-            CURRENT_TOOL=$((${CURRENT_TOOL}+1))
-            continue
-        fi
-
-        echo Installing
+        echo Installing ${2}
         sudo apt-get install -y ${2} >/dev/null 2>&1
 
         CURRENT_TOOL=$((${CURRENT_TOOL}+1))
@@ -101,7 +168,9 @@ script_info_and_disclaimer
 
 check_if_virtualized
 
-install_needed_tools
+validate_tools_array
+
+check_needed_tools
 
 # Define and create temporary directory
 TMP_DIR="tmp_lambda_bug_report"
