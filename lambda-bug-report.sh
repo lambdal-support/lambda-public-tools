@@ -24,13 +24,29 @@ script_info_and_disclaimer() {
         echo " * ${2}"
         CURRENT_TOOL=$((${CURRENT_TOOL}+1))
     done | sort
-    echo "To install these tools set the environment variable SKIP_TOOLS to 0."
+    confirm_tools
     echo
     echo "By delivering 'lambda-bug-report.log.gz' to Lambda, you acknowledge"
     echo "and agree that sensitive information may inadvertently be included in"
     echo "the output. Notwithstanding the foregoing, Lambda will use the"
     echo "output only for the purpose of investigating your reported issue."
     echo
+}
+
+confirm_tools() {
+    if [[ -v $SKIP_TOOLS && $SKIP_TOOLS -eq 0 ]]; then
+        # The user has non-interactively approved, so no need to proceed with this function.
+        return
+    fi
+
+    echo "You may use the environment variable SKIP_TOOLS=0 to answer Y to the following prompt automatically:"
+    read -N 1 -p "Press Y to install these tools, press any other key to continue without them. " CONFIRM_TOOLS < /dev/tty
+    echo
+    if [[ "${CONFIRM_TOOLS,,}" == "y" ]]; then
+        SKIP_TOOLS=0
+    else
+        SKIP_TOOLS=1
+    fi
 }
 
 integer_check() {
@@ -106,9 +122,6 @@ validate_tools_array() {
         CURRENT_TOOL=$((${CURRENT_TOOL}+1))
     done
 }
-
-# By default, do not install tools.
-SKIP_TOOLS=${SKIP_TOOLS:-1}
 
 check_needed_tools() {
     if [ $SKIP_TOOLS -eq 0 ]; then
