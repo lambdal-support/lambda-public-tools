@@ -81,7 +81,7 @@ check_if_virtualized() {
 # This array should not be modified after set, except through the update_needed_tools function.
 declare -a NEEDED_TOOLS
 NEEDED_TOOLS=(
-    "smartmonctl, smartmontools, 2, 0",
+    "smartctl, smartmontools, 2, 0",
     "ipmitool, ipmitool, 2, 0",
     "sensors, lm-sensors, 2, 0",
     "iostat, sysstat, 2, 1",
