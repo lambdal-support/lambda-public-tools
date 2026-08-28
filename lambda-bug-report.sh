@@ -346,6 +346,12 @@ fi
 sudo ss --tcp --udp --listening --numeric --process >"${NETWORKING_DIR}/ss.txt"
 echo "$(uptime -p)" since "$(uptime -s)" >"${FINAL_DIR}/uptime.txt"
 
+#nvidia-smi -q 
+if [ ! -s "${FINAL_DIR}/nvidia-smi.txt" ]; then
+    echo "No nvidia-smi data available. This machine may not have nvidia-smi." >"${FINAL_DIR}/nvidia-smi.txt"
+fi
+nvidia-smi -q >"${FINAL_DIR}/nvidia-smi-expanded.txt" 2>&1
+
 collect_drive_checks
 
 # Compress all collected logs into a single file
